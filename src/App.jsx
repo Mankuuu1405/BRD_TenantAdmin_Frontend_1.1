@@ -16,33 +16,34 @@ import DashboardDispatcher from "./components/DashboardDispatcher.jsx";
 import Dashboard from "./pages/Dashboard.jsx"; // Generic Dashboard (Admin view)
 import Branches from "./pages/Branches.jsx";
 import Loans from "./pages/Loans.jsx"; // Loan Products
-import LoanApplications from "./pages/LoanApplications.jsx"; 
+import LoanApplications from "./pages/LoanApplications.jsx";
 import PersonalLoanApplicationWizard from "./pages/PersonalLoanApplicationWizard.jsx";
 import AddBusiness from "./pages/AddBusiness.jsx";
 
 // ⭐ PHASE 5: CRM & LEADS
-import Leads from "./pages/Leads.jsx";            
-import Campaigns from "./pages/Campaigns.jsx";    
+import Leads from "./pages/Leads.jsx";
+import Campaigns from "./pages/Campaigns.jsx";
+import AddLead from "./pages/AddLead.jsx";
 
 // ⭐ PHASE 4: RISK ENGINE
-import RiskEngine from "./pages/RiskEngine.jsx"; 
+import RiskEngine from "./pages/RiskEngine.jsx";
 
 // ⭐ PHASE 7: GOVERNANCE & DISBURSEMENT
 import EscalationRules from "./pages/EscalationRules.jsx";
 import MandateManagement from "./pages/MandateManagement.jsx";
-import DisbursementQueue from "./pages/DisbursementQueue.jsx"; 
+import DisbursementQueue from "./pages/DisbursementQueue.jsx";
 
 // ⭐ PHASE 8: COLLECTIONS & LMS
-import Collections from "./pages/Collections.jsx"; 
+import Collections from "./pages/Collections.jsx";
 import LoanAccount from "./pages/LoanAccountDetails.jsx"; // ✅ Added Loan Account View
 import LoanAccountsList from "./pages/LoanAccountList.jsx";
 
 // ⭐ PHASE 9: SUPPORT & TRAINING
-import Support from "./pages/SupportTickets.jsx";         // ✅ Added Support
-import Training from "./pages/Training.jsx";       // ✅ Added Training
+import Support from "./pages/SupportTickets.jsx"; // ✅ Added Support
+import Training from "./pages/Training.jsx"; // ✅ Added Training
 
 // Admin & Settings Pages
-import Logs from "./pages/Logs.jsx";    
+import Logs from "./pages/Logs.jsx";
 import Calendar from "./pages/Calendar.jsx";
 import RolesPermissions from "./pages/RolesPermissions.jsx";
 import Users from "./pages/Users.jsx";
@@ -72,7 +73,8 @@ function AppContent() {
   // Basic auth check logic
   const isLoggedIn = () => !!localStorage.getItem("access");
   const authRoutes = ["/login", "/signup", "/forgot_password", "/sendlink"];
-  const shouldShowLayout = isLoggedIn() && !authRoutes.includes(location.pathname);
+  const shouldShowLayout =
+    isLoggedIn() && !authRoutes.includes(location.pathname);
 
   return (
     <div className="h-full bg-gray-50 flex text-gray-900">
@@ -95,19 +97,25 @@ function AppContent() {
           <Route path="/" element={<Navigate to="/login" />} />
 
           {/* ---------------- PROTECTED ROUTES ---------------- */}
-          
+
           {/* ✅ 2. REPLACED: Original hardcoded Dashboard with Dispatcher 
               This allows the URL '/dashboard' to render different views based on role 
           */}
           <Route
             path="/dashboard"
-            element={isLoggedIn() ? <DashboardDispatcher /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <DashboardDispatcher /> : <Navigate to="/login" />
+            }
           />
 
           {/* ⭐ PHASE 5: CRM (LEADS & CAMPAIGNS) */}
           <Route
             path="/leads"
             element={isLoggedIn() ? <Leads /> : <Navigate to="/login" />}
+          />
+          <Route
+            path="/leads/new"
+            element={isLoggedIn() ? <AddLead /> : <Navigate to="/login" />}
           />
           <Route
             path="/campaigns"
@@ -121,34 +129,50 @@ function AppContent() {
           />
 
           {/* ⭐ PHASE 7: GOVERNANCE & MANDATES */}
-          <Route 
-            path="/escalation-rules" 
-            element={isLoggedIn() ? <EscalationRules /> : <Navigate to="/login" />} 
+          <Route
+            path="/escalation-rules"
+            element={
+              isLoggedIn() ? <EscalationRules /> : <Navigate to="/login" />
+            }
           />
-          <Route 
-            path="/mandates" 
-            element={isLoggedIn() ? <MandateManagement /> : <Navigate to="/login" />} 
+          <Route
+            path="/mandates"
+            element={
+              isLoggedIn() ? <MandateManagement /> : <Navigate to="/login" />
+            }
           />
-          <Route 
-            path="/loan-accounts" 
-            element={isLoggedIn() ? <LoanAccountsList /> : <Navigate to="/login" />} 
+          <Route
+            path="/loan-accounts"
+            element={
+              isLoggedIn() ? <LoanAccountsList /> : <Navigate to="/login" />
+            }
           />
 
           {/* ⭐ EXISTING: LOAN APPLICATIONS (LOS) */}
           <Route
             path="/loan-applications"
-            element={isLoggedIn() ? <LoanApplications /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <LoanApplications /> : <Navigate to="/login" />
+            }
           />
-          
+
           <Route
             path="/loan-applications/new-personal-loan"
-            element={isLoggedIn() ? <PersonalLoanApplicationWizard /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? (
+                <PersonalLoanApplicationWizard />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
           />
 
           {/* ⭐ PHASE 7a: DISBURSEMENT QUEUE */}
           <Route
             path="/disbursements"
-            element={isLoggedIn() ? <DisbursementQueue /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <DisbursementQueue /> : <Navigate to="/login" />
+            }
           />
 
           {/* ⭐ PHASE 8: COLLECTIONS & LMS */}
@@ -157,21 +181,22 @@ function AppContent() {
             element={isLoggedIn() ? <Collections /> : <Navigate to="/login" />}
           />
           {/* Dynamic route for specific loan account details */}
-          <Route 
-            path="/loan-account/:id" 
-            element={isLoggedIn() ? <LoanAccountDetails /> : <Navigate to="/login" />} 
+          <Route
+            path="/loan-account/:id"
+            element={
+              isLoggedIn() ? <LoanAccountDetails /> : <Navigate to="/login" />
+            }
           />
           {/* Temporary list view for Loan Accounts (can reuse Loans or a new page) */}
-          
 
           {/* ⭐ PHASE 9: SUPPORT & TRAINING */}
-          <Route 
-            path="/support" 
-            element={isLoggedIn() ? <Support /> : <Navigate to="/login" />} 
+          <Route
+            path="/support"
+            element={isLoggedIn() ? <Support /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/training" 
-            element={isLoggedIn() ? <Training /> : <Navigate to="/login" />} 
+          <Route
+            path="/training"
+            element={isLoggedIn() ? <Training /> : <Navigate to="/login" />}
           />
 
           {/* --- Other Tenant Modules --- */}
@@ -182,17 +207,23 @@ function AppContent() {
 
           <Route
             path="/my-subscription"
-            element={isLoggedIn() ? <MySubscription /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <MySubscription /> : <Navigate to="/login" />
+            }
           />
 
           <Route
             path="/channel-partners"
-            element={isLoggedIn() ? <ChannelPartners /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <ChannelPartners /> : <Navigate to="/login" />
+            }
           />
 
           <Route
             path="/third-party-users"
-            element={isLoggedIn() ? <ThirdPartyUsers /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <ThirdPartyUsers /> : <Navigate to="/login" />
+            }
           />
 
           <Route
@@ -217,7 +248,9 @@ function AppContent() {
 
           <Route
             path="/roles_permissions"
-            element={isLoggedIn() ? <RolesPermissions /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <RolesPermissions /> : <Navigate to="/login" />
+            }
           />
 
           <Route
@@ -237,12 +270,20 @@ function AppContent() {
 
           <Route
             path="/notifications"
-            element={isLoggedIn() ? <Notifications /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? <Notifications /> : <Navigate to="/login" />
+            }
           />
 
           <Route
             path="/internal-team-dashboards"
-            element={isLoggedIn() ? <InternalTeamDashboards /> : <Navigate to="/login" />}
+            element={
+              isLoggedIn() ? (
+                <InternalTeamDashboards />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
           />
 
           <Route

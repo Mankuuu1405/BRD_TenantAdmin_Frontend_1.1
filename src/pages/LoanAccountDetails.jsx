@@ -56,7 +56,7 @@ export default function LoanAccountDetails() {
         <div className="relative z-10 flex justify-between items-start">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <span className="bg-emerald-500/20 text-emerald-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-emerald-500/30">
+              <span className="bg-primary-500/20 text-primary-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-emerald-500/30">
                 {account.status || 'Active Loan'}
               </span>
               <h1 className="text-3xl font-black tracking-tight">{account.loan_no}</h1>
@@ -68,7 +68,7 @@ export default function LoanAccountDetails() {
             <button className="bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl font-bold text-sm backdrop-blur-sm transition flex items-center gap-2">
               <DocumentArrowDownIcon className="w-5 h-5" /> Statement
             </button>
-            <button className="bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-900/20 flex items-center gap-2">
+            <button className="bg-primary-600 hover:bg-emerald-500 px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-emerald-900/20 flex items-center gap-2">
               <CheckBadgeIcon className="w-5 h-5" /> Foreclose / NOC
             </button>
           </div>
@@ -96,7 +96,7 @@ export default function LoanAccountDetails() {
             </div>
             <div className="w-full bg-slate-700 h-1.5 rounded-full mt-3 overflow-hidden">
               <div 
-                className="bg-emerald-500 h-full transition-all duration-1000" 
+                className="bg-primary-600 h-full transition-all duration-1000" 
                 style={{ width: `${(account.tenure_completed / account.tenure_total) * 100}%` }}
               ></div>
             </div>

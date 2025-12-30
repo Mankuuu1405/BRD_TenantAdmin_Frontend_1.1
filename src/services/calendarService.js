@@ -38,4 +38,18 @@ export const calendarAPI = {
     return axiosInstance.delete(`tenants/calendar/holidays/${id}/`);
   },
 
+  // ---------------- ASSESSMENT YEARS ----------------
+  getAssessmentYears() {
+    return axiosInstance.get("tenants/calendar/assessment-years/");
+  },
+  createAssessmentYear(data) {
+    return axiosInstance.post("tenants/calendar/assessment-years/", data);
+  },
+  updateAssessmentYear(id, data) {
+    return axiosInstance.put(`tenants/calendar/assessment-years/${id}/`, data);
+  },
+  deleteAssessmentYear(id) {
+    return axiosInstance.delete(`tenants/calendar/assessment-years/${id}/`);
+  },
+
 };

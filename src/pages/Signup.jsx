@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import axiosInstance from "../utils/axiosInstance";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
 import { useNavigate } from "react-router-dom";
+import SignupVerificationModal from "../components/SignupVerificationModal";
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [showModal, setShowModal] = useState(false);
 
   // Personal Information
   const [contactPerson, setContactPerson] = useState("");
@@ -18,6 +20,10 @@ export default function Signup() {
   const [state, setState] = useState("");
   const [country, setCountry] = useState("");
 
+  const [countriesList, setCountriesList] = useState([]);
+  const [statesList, setStatesList] = useState([]);
+  const [citiesList, setCitiesList] = useState([]);
+
   // Business Information
   const [businessName, setBusinessName] = useState("");
   const [cin, setCin] = useState("");
@@ -25,7 +31,8 @@ export default function Signup() {
   const [gstin, setGstin] = useState("");
   const [usersCount, setUsersCount] = useState("");
   const [subscriptionType, setSubscriptionType] = useState("");
-  const [loanProduct, setLoanProduct] = useState(""); // Added this field
+  const [loanProduct, setLoanProduct] = useState([]);
+  const [loanProductOptions, setLoanProductOptions] = useState([])
 
   // Account Information
   const [password, setPassword] = useState("");
@@ -35,6 +42,16 @@ export default function Signup() {
   const [globalError, setGlobalError] = useState(null);
   const [status, setStatus] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const res = await axiosInstance.get("tenants/loan-products/");
+        setLoanProductOptions(res.data);
+      } catch (err) { console.error("Error loading products", err); }
+    };
+    fetchProducts();
+  }, []);
 
   const FieldError = ({ error }) => {
     if (!error) return null;
@@ -156,6 +173,7 @@ export default function Signup() {
     setStatus(null);
     setFormErrors({});
     setIsSubmitting(true);
+    setShowModal(true);
 
     const errors = {};
 
@@ -222,16 +240,116 @@ export default function Signup() {
     }
   };
 
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await axiosInstance.get("locations/countries/");
+        setCountriesList(res.data);
+      } catch (err) { console.error("Error fetching countries", err); }
+    };
+    fetchCountries();
+  }, []);
+
+  useEffect(() => {
+    if (!country) {
+      setStatesList([]);
+      return;
+    }
+    const fetchStates = async () => {
+      try {
+        // Use the selected country ID/name to fetch specific states
+        const res = await axiosInstance.get(`locations/states/?country=${country}`);
+        setStatesList(res.data);
+        setState(""); // Reset state and city on country change
+        setCity("");
+      } catch (err) { console.error("Error fetching states", err); }
+    };
+    fetchStates();
+  }, [country]);
+
+  useEffect(() => {
+    if (!state) {
+      setCitiesList([]);
+      return;
+    }
+    const fetchCities = async () => {
+      try {
+        const res = await axiosInstance.get(`locations/cities/?state=${state}`);
+        setCitiesList(res.data);
+        setCity(""); // Reset city on state change
+      } catch (err) { console.error("Error fetching cities", err); }
+    };
+    fetchCities();
+  }, [state]);
+
+  const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapperRef = useRef(null);
+
+    useEffect(() => {
+      function handleClickOutside(event) {
+        if (wrapperRef.current && !wrapperRef.current.contains(event.target)) setIsOpen(false);
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    const toggleOption = (value) => {
+      const newSelected = selected.includes(value)
+        ? selected.filter((item) => item !== value)
+        : [...selected, value];
+      onChange(newSelected);
+    };
+
+    return (
+      <div className="relative group" ref={wrapperRef}>
+        <div
+          className="w-full bg-white border border-gray-300 text-gray-800 text-sm rounded-md min-h-[48px] p-2 flex flex-wrap gap-2 items-center cursor-pointer transition-all duration-200"
+          onClick={() => setIsOpen(!isOpen)}
+        >
+          {selected.length === 0 ? (
+            <span className="text-gray-400 pl-2 select-none">{placeholder}</span>
+          ) : (
+            selected.map((item) => (
+              <span key={item} className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-bold border border-blue-200 flex items-center gap-1">
+                {item}
+                <span className="cursor-pointer hover:text-blue-900" onClick={(e) => { e.stopPropagation(); toggleOption(item); }}>×</span>
+              </span>
+            ))
+          )}
+        </div>
+
+        {isOpen && (
+          <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-md shadow-xl max-h-60 overflow-y-auto">
+            {options.map((option) => (
+              <div
+                key={option.id || option.name}
+                className="px-4 py-3 hover:bg-gray-50 cursor-pointer flex items-center gap-3 transition-colors border-b border-gray-50 last:border-0"
+                onClick={() => toggleOption(option.name)}
+              >
+                <div className={`w-5 h-5 rounded border flex items-center justify-center ${selected.includes(option.name) ? 'bg-blue-600 border-blue-600' : 'border-gray-300 bg-white'}`}>
+                  {selected.includes(option.name) && <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                </div>
+                <span className="text-sm font-medium text-gray-700">{option.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-3xl">
         <div className="bg-white py-8 px-6 shadow-lg rounded-xl sm:rounded-lg sm:px-10">
           {/* Header */}
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center">
             <div className="h-12 w-12 rounded-full bg-primary-50 flex items-center justify-center">
               <ShieldCheckIcon className="h-6 w-6 text-primary-600" />
             </div>
-            <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+
+            <h2 className="mt-4 text-3xl font-extrabold text-gray-900 text-center">
               Create your account
             </h2>
           </div>
@@ -355,28 +473,56 @@ export default function Signup() {
                   </div>
                 </div>
 
-                {/* CITY */}
+
+                {/* COUNTRY */}
                 <div>
-                  <label
-                    htmlFor="city"
-                    className="block text-sm font-medium text-gray-700"
+                  <label className="block text-sm font-medium text-gray-700 ">Country</label>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   >
-                    City
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="city"
-                      name="city"
-                      type="text"
-                      placeholder="City"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="block w-full border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                    <FieldError error={formErrors.city} />
-                  </div>
+                    <option value="">Select Country</option>
+                    {countriesList.map((c) => (
+                      <option key={c.id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                  <FieldError error={formErrors.country} />
                 </div>
 
+                {/* STATE */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">State</label>
+                  <select
+                    value={state}
+                    onChange={(e) => setState(e.target.value)}
+                    disabled={!country || statesList.length === 0}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm disabled:bg-gray-100"
+                  >
+                    <option value="">Select State</option>
+                    {statesList.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                  <FieldError error={formErrors.state} />
+                </div>
+
+                {/* CITY */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">City</label>
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    disabled={!state || citiesList.length === 0}
+                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm disabled:bg-gray-100"
+                  >
+                    <option value="">Select City</option>
+                    {citiesList.map((cityItem) => (
+                      <option key={cityItem.id} value={cityItem.name}>{cityItem.name}</option>
+                    ))}
+                  </select>
+                  <FieldError error={formErrors.city} />
+                </div>
                 {/* PINCODE */}
                 <div>
                   <label
@@ -400,52 +546,9 @@ export default function Signup() {
                     <FieldError error={formErrors.pincode} />
                   </div>
                 </div>
-
-                {/* STATE */}
-                <div>
-                  <label
-                    htmlFor="state"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    State
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="state"
-                      name="state"
-                      type="text"
-                      placeholder="State"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                      className="block w-full border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                    <FieldError error={formErrors.state} />
-                  </div>
-                </div>
-
-                {/* COUNTRY */}
-                <div>
-                  <label
-                    htmlFor="country"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Country
-                  </label>
-                  <div className="mt-1">
-                    <input
-                      id="country"
-                      name="country"
-                      type="text"
-                      placeholder="Country"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      className="block w-full border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    />
-                    <FieldError error={formErrors.country} />
-                  </div>
-                </div>
               </div>
             </div>
+
 
             {/* Business Information Section */}
             <div className="mb-6">
@@ -477,21 +580,15 @@ export default function Signup() {
 
                 {/* LOAN PRODUCT - Added this field to match first version */}
                 <div className="sm:col-span-2">
-                  <label
-                    htmlFor="loan_product"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Loan Product
+                  <label htmlFor="loan_product" className="block text-sm font-medium text-gray-700">
+                    Loan Products
                   </label>
                   <div className="mt-1">
-                    <input
-                      id="loan_product"
-                      name="loan_product"
-                      type="text"
-                      placeholder="e.g. Personal Loan, Micro Loan"
-                      value={loanProduct}
-                      onChange={(e) => setLoanProduct(e.target.value)}
-                      className="block w-full border-gray-300 rounded-md shadow-sm py-3 px-4 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    <MultiSelectDropdown
+                      options={loanProductOptions}
+                      selected={loanProduct}
+                      onChange={(val) => setLoanProduct(val)}
+                      placeholder="Select products (e.g. Personal Loan, Micro Loan)"
                     />
                     <FieldError error={formErrors.loan_product} />
                   </div>
@@ -687,6 +784,8 @@ export default function Signup() {
                 Sign In
               </button>
             </div>
+          <SignupVerificationModal isOpen={showModal} onClose={()=>setShowModal(false)} />
+
           </div>
         </div>
       </div>

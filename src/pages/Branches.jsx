@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import axiosInstance from "../utils/axiosInstance";
+import { branchAPI, businessAPI, productAPI } from "../services/branchService.js";
 
 // =============================================================================
 // SECTION 1: ICONS
@@ -102,7 +102,7 @@ const ToggleSwitch = ({ checked, onChange, label }) => (
       onClick={onChange}
       className={`${checked ? 'bg-blue-600' : 'bg-slate-300'} relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none`}
     >
-      <span aria-hidden="true" className={`${checked ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}/>
+      <span aria-hidden="true" className={`${checked ? 'translate-x-5' : 'translate-x-0'} pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`} />
     </button>
   </div>
 );
@@ -145,15 +145,15 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
   }, []);
 
   const toggleOption = (value) => {
-    const newSelected = selected.includes(value) 
-      ? selected.filter((item) => item !== value) 
+    const newSelected = selected.includes(value)
+      ? selected.filter((item) => item !== value)
       : [...selected, value];
     onChange(newSelected);
   };
 
   return (
     <div className="relative group" ref={wrapperRef}>
-      <div 
+      <div
         className="w-full bg-slate-50 border border-slate-200 text-slate-800 font-bold text-sm rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:bg-white min-h-[48px] p-2 flex flex-wrap gap-2 items-center cursor-pointer transition-all duration-200"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -163,7 +163,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
           selected.map((item) => (
             <span key={item} className="bg-blue-100 text-blue-700 px-2.5 py-1 rounded-lg text-xs font-bold border border-blue-200 flex items-center gap-1">
               {item}
-              <span className="cursor-pointer hover:text-blue-900" onClick={(e) => {e.stopPropagation(); toggleOption(item);}}>×</span>
+              <span className="cursor-pointer hover:text-blue-900" onClick={(e) => { e.stopPropagation(); toggleOption(item); }}>×</span>
             </span>
           ))
         )}
@@ -197,15 +197,15 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder }) => {
 
 export default function Branches() {
   const [items, setItems] = useState([]);
-  
+
   // Dropdown Data
   const [businessOptions, setBusinessOptions] = useState([]);
   const [productOptions, setProductOptions] = useState([]);
-  
+
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  
+
   const [validationError, setValidationError] = useState("");
   const [search, setSearch] = useState("");
 
@@ -232,30 +232,25 @@ export default function Branches() {
 
   // Load Data
   useEffect(() => {
-    const fetchData = async () => {
+    const loadAllData = async () => {
       try {
-        // --- 1. LOCAL API WRAPPER DEFINITION (FIXED) ---
-        // Ensure this points to the correct endpoint. Assuming '/branches/' exists in your backend.
-        const res = await axiosInstance.get('tenants/branches/'); // Adjust endpoint as needed
-        setItems(Array.isArray(res.data) ? res.data : []);
-        
-        // --- Mocking Backend Data for Dropdowns ---
-        setBusinessOptions([
-          { id: 1, name: "Alpha Corp Global" },
-          { id: 2, name: "Beta Financials" },
-          { id: 3, name: "Gamma Retail Services" },
+        // Fetch all three data sets in parallel
+        const [branches, businesses, products] = await Promise.all([
+          branchAPI.getAll(),
+          businessAPI.getAll(),
+          productAPI.getAll()
         ]);
-        
-        setProductOptions([
-          { id: 1, name: "Home Loan" },
-          { id: 2, name: "Personal Loan" },
-          { id: 3, name: "Car Loan" },
-          { id: 4, name: "Gold Loan" },
-          { id: 5, name: "Education Loan" },
-        ]);
-      } catch (err) { console.error("Error loading data", err); }
+
+        setItems(branches);
+        setBusinessOptions(businesses);
+        setProductOptions(products);
+      } catch (err) {
+        console.error("Initialization failed:", err);
+        setValidationError("Failed to load data from server.");
+      }
     };
-    fetchData();
+
+    loadAllData();
   }, []);
 
   const validateBranch = (data) => {
@@ -271,49 +266,47 @@ export default function Branches() {
   const handleSave = async () => {
     const errorMsg = validateBranch(form);
     if (errorMsg) { setValidationError(errorMsg); return; }
-    
-    try {
-      console.log("Submitting Branch Payload:", form); // DEBUGGING
 
-      // Call Local API wrapper using axiosInstance directly
-      const res = await axiosInstance.post('tenants/branches/', form);
-      
-      setItems([...items, res.data]);
-      setCreating(false); 
-      setForm(initialForm); 
+    try {
+      const newBranch = await branchAPI.create(form);
+      setItems([...items, newBranch]);
+      setCreating(false);
+      setForm(initialForm);
       setValidationError("");
-    } catch (e) { 
-      console.error("Create Failed:", e);
-      setValidationError("Failed to create branch. Check console for details."); 
+    } catch (e) {
+      setValidationError("Create failed. Please try again.");
     }
   };
 
   const handleUpdate = async () => {
-    if (!editing.branch_name.trim()) { setValidationError("Branch Name is required"); return; }
-    
     try {
-      const res = await axiosInstance.put(`tenants/branches/${editing.id}/`, editing);
-      setItems(items.map(b => b.id === editing.id ? res.data : b));
-      setEditing(null); setValidationError("");
-    } catch (e) { setValidationError("Failed to update branch"); }
+      const updatedBranch = await branchAPI.update(editing.id, editing);
+      setItems(items.map(b => b.id === editing.id ? updatedBranch : b));
+      setEditing(null);
+      setValidationError("");
+    } catch (e) {
+      setValidationError("Update failed.");
+    }
   };
 
   const handleDelete = async () => {
     try {
-      await axiosInstance.delete(`tenants/branches/${deleting.id}/`);
+      await branchAPI.delete(deleting.id);
       setItems(items.filter(b => b.id !== deleting.id));
       setDeleting(null);
-    } catch (e) { alert("Delete failed"); }
+    } catch (e) {
+      alert("Delete failed");
+    }
   };
 
-  const filteredItems = useMemo(() => items.filter(b => 
-    b.branch_name?.toLowerCase().includes(search.toLowerCase()) || 
+  const filteredItems = useMemo(() => items.filter(b =>
+    b.branch_name?.toLowerCase().includes(search.toLowerCase()) ||
     b.business_name?.toLowerCase().includes(search.toLowerCase())
   ), [items, search]);
 
   return (
     <div className="p-12 max-w-[1800px] mx-auto min-h-screen bg-slate-50 font-sans">
-      
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
         <div>
@@ -326,16 +319,16 @@ export default function Branches() {
       {/* Search & Table */}
       <div className="bg-white rounded-[2rem] shadow-xl border border-slate-200 overflow-hidden">
         <div className="p-8 border-b border-slate-100 bg-white">
-           <div className="relative flex-1 max-w-lg">
-             <span className="absolute left-5 top-4 text-slate-400"><Icons.Search /></span>
-             <input 
-               className="w-full pl-14 pr-6 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400" 
-               placeholder="Search by Branch Name..." 
-               value={search} onChange={e => setSearch(e.target.value)}
-             />
-           </div>
+          <div className="relative flex-1 max-w-lg">
+            <span className="absolute left-5 top-4 text-slate-400"><Icons.Search /></span>
+            <input
+              className="w-full pl-14 pr-6 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all placeholder:text-slate-400"
+              placeholder="Search by Branch Name..."
+              value={search} onChange={e => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-slate-50/80 text-slate-500 font-extrabold uppercase tracking-widest text-[11px] border-b border-slate-200">
@@ -356,8 +349,8 @@ export default function Branches() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="text-slate-400"><Icons.User/></span> {b.contact_person || "-"}</div>
-                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500"><span className="text-slate-400"><Icons.Phone/></span> {b.mobile_no || "-"}</div>
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-600"><span className="text-slate-400"><Icons.User /></span> {b.contact_person || "-"}</div>
+                      <div className="flex items-center gap-2 text-xs font-medium text-slate-500"><span className="text-slate-400"><Icons.Phone /></span> {b.mobile_no || "-"}</div>
                     </div>
                   </td>
                   <td className="px-8 py-6">
@@ -378,12 +371,12 @@ export default function Branches() {
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => { 
-                          // Ensure array format for multiselect
-                          const formattedProducts = Array.isArray(b.loan_product) ? b.loan_product : (b.loan_product ? b.loan_product.split(',') : []);
-                          setEditing({ ...b, loan_product: formattedProducts }); 
-                          setValidationError(""); 
-                        }} 
+                      <button onClick={() => {
+                        // Ensure array format for multiselect
+                        const formattedProducts = Array.isArray(b.loan_product) ? b.loan_product : (b.loan_product ? b.loan_product.split(',') : []);
+                        setEditing({ ...b, loan_product: formattedProducts });
+                        setValidationError("");
+                      }}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"><Icons.Edit />
                       </button>
                       <button onClick={() => setDeleting(b)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition"><Icons.Trash /></button>
@@ -402,88 +395,88 @@ export default function Branches() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-slate-50 px-8 py-6 border-b border-slate-200 flex justify-between items-center">
-               <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center"><Icons.Building /></div>
-                 <div>
-                   <h2 className="text-xl font-extrabold text-slate-900">Add New Branch</h2>
-                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Tenant ID: {form.tenant_id}</p>
-                 </div>
-               </div>
-               <button onClick={() => setCreating(false)} className="text-slate-400 hover:text-rose-500 transition"><Icons.Close /></button>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center"><Icons.Building /></div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">Add New Branch</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">Tenant ID: {form.tenant_id}</p>
+                </div>
+              </div>
+              <button onClick={() => setCreating(false)} className="text-slate-400 hover:text-rose-500 transition"><Icons.Close /></button>
             </div>
 
             <div className="p-8 overflow-y-auto space-y-8">
-               {/* 1. Branch Identity */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Identity & Business</h4></div>
-                  <FormGroup label="Branch Name" required>
-                    <InputBox value={form.branch_name} onChange={e => setForm({...form, branch_name: e.target.value})} placeholder="e.g. Mumbai Main" icon={<Icons.Building />} />
-                  </FormGroup>
-                  <FormGroup label="Business Name" required>
-                    <SelectBox options={businessOptions} value={form.business_name} onChange={e => setForm({...form, business_name: e.target.value})} placeholder="Select Business Entity" icon={<Icons.Building />} />
-                  </FormGroup>
-                  <FormGroup label="Allowed Products">
-                    <MultiSelectDropdown options={productOptions} selected={form.loan_product} onChange={val => setForm({...form, loan_product: val})} placeholder="Select Products" />
-                  </FormGroup>
-                  <FormGroup label="GSTIN">
-                    <InputBox value={form.gst_in} onChange={e => setForm({...form, gst_in: e.target.value})} placeholder="GST Number" icon={<Icons.Receipt />} />
-                  </FormGroup>
-               </div>
+              {/* 1. Branch Identity */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Identity & Business</h4></div>
+                <FormGroup label="Branch Name" required>
+                  <InputBox value={form.branch_name} onChange={e => setForm({ ...form, branch_name: e.target.value })} placeholder="e.g. Mumbai Main" icon={<Icons.Building />} />
+                </FormGroup>
+                <FormGroup label="Business Name" required>
+                  <SelectBox options={businessOptions} value={form.business_name} onChange={e => setForm({ ...form, business_name: e.target.value })} placeholder="Select Business Entity" icon={<Icons.Building />} />
+                </FormGroup>
+                <FormGroup label="Allowed Products">
+                  <MultiSelectDropdown options={productOptions} selected={form.loan_product} onChange={val => setForm({ ...form, loan_product: val })} placeholder="Select Products" />
+                </FormGroup>
+                <FormGroup label="GSTIN">
+                  <InputBox value={form.gst_in} onChange={e => setForm({ ...form, gst_in: e.target.value })} placeholder="GST Number" icon={<Icons.Receipt />} />
+                </FormGroup>
+              </div>
 
-               {/* 2. Contact */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Contact & Address</h4></div>
-                  <FormGroup label="Contact Person">
-                    <InputBox value={form.contact_person} onChange={e => setForm({...form, contact_person: e.target.value})} placeholder="Manager Name" icon={<Icons.User />} />
-                  </FormGroup>
-                  <FormGroup label="Mobile No">
-                    <InputBox type="tel" value={form.mobile_no} onChange={e => setForm({...form, mobile_no: e.target.value})} placeholder="+91 98765 43210" icon={<Icons.Phone />} />
-                  </FormGroup>
-                  <FormGroup label="Email">
-                    <InputBox type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} placeholder="branch@email.com" icon={<Icons.Mail />} />
-                  </FormGroup>
-                  <FormGroup label="Branch Address" className="col-span-2">
-                    <TextareaBox value={form.address} onChange={e => setForm({...form, address: e.target.value})} placeholder="Full branch address details..." icon={<Icons.MapPin />} />
-                  </FormGroup>
-               </div>
+              {/* 2. Contact */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Contact & Address</h4></div>
+                <FormGroup label="Contact Person">
+                  <InputBox value={form.contact_person} onChange={e => setForm({ ...form, contact_person: e.target.value })} placeholder="Manager Name" icon={<Icons.User />} />
+                </FormGroup>
+                <FormGroup label="Mobile No">
+                  <InputBox type="tel" value={form.mobile_no} onChange={e => setForm({ ...form, mobile_no: e.target.value })} placeholder="+91 98765 43210" icon={<Icons.Phone />} />
+                </FormGroup>
+                <FormGroup label="Email">
+                  <InputBox type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="branch@email.com" icon={<Icons.Mail />} />
+                </FormGroup>
+                <FormGroup label="Branch Address" className="col-span-2">
+                  <TextareaBox value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Full branch address details..." icon={<Icons.MapPin />} />
+                </FormGroup>
+              </div>
 
-               {/* 3. Status & Security */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Status & Security</h4></div>
-                  
-                  {/* UPDATED PASSWORD FIELD - EDITABLE BY DEFAULT */}
-                  <FormGroup label="Branch Password" required>
-                    <div className="flex gap-2 relative">
-                        <InputBox 
-                            type="text" 
-                            value={form.password} 
-                            onChange={e => setForm({...form, password: e.target.value})} 
-                            placeholder="Enter password"
-                            icon={<Icons.Lock />} 
-                        />
-                        <button 
-                            type="button"
-                            onClick={() => setForm({...form, password: generatePassword()})} 
-                            className="absolute right-2 top-2 p-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
-                            title="Auto-Generate"
-                        >
-                            Generate
-                        </button>
-                    </div>
-                  </FormGroup>
+              {/* 3. Status & Security */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="col-span-2"><h4 className="text-xs font-bold text-blue-900 uppercase tracking-widest border-b border-blue-100 pb-2 mb-2">Status & Security</h4></div>
 
-                  <FormGroup label="Current Status">
-                    <SelectBox options={[{value: 'Active', label: 'Active'}, {value: 'Inactive', label: 'Inactive'}]} value={form.status} onChange={e => setForm({...form, status: e.target.value})} />
-                  </FormGroup>
-                  <div className="col-span-2">
-                    <ToggleSwitch label="Branch Verification Status" checked={form.isVerified} onChange={() => setForm({...form, isVerified: !form.isVerified})} />
+                {/* UPDATED PASSWORD FIELD - EDITABLE BY DEFAULT */}
+                <FormGroup label="Branch Password" required>
+                  <div className="flex gap-2 relative">
+                    <InputBox
+                      type="text"
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      placeholder="Enter password"
+                      icon={<Icons.Lock />}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, password: generatePassword() })}
+                      className="absolute right-2 top-2 p-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition"
+                      title="Auto-Generate"
+                    >
+                      Generate
+                    </button>
                   </div>
-               </div>
+                </FormGroup>
+
+                <FormGroup label="Current Status">
+                  <SelectBox options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]} value={form.status} onChange={e => setForm({ ...form, status: e.target.value })} />
+                </FormGroup>
+                <div className="col-span-2">
+                  <ToggleSwitch label="Branch Verification Status" checked={form.isVerified} onChange={() => setForm({ ...form, isVerified: !form.isVerified })} />
+                </div>
+              </div>
             </div>
 
             <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-               <Button variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
-               <Button variant="primary" onClick={handleSave} disabled={!form.branch_name || !form.business_name}>Create Branch</Button>
+              <Button variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleSave} disabled={!form.branch_name || !form.business_name}>Create Branch</Button>
             </div>
             {validationError && <div className="absolute bottom-20 right-8 bg-rose-50 text-rose-600 px-4 py-2 rounded-lg text-xs font-bold border border-rose-200 shadow-lg">{validationError}</div>}
           </div>
@@ -495,55 +488,55 @@ export default function Branches() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="bg-slate-50 px-8 py-6 border-b border-slate-200 flex justify-between items-center">
-               <div className="flex items-center gap-4">
-                 <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center"><Icons.Edit /></div>
-                 <div>
-                   <h2 className="text-xl font-extrabold text-slate-900">Edit Branch</h2>
-                   <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{editing.branch_name}</p>
-                 </div>
-               </div>
-               <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-rose-500 transition"><Icons.Close /></button>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center"><Icons.Edit /></div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">Edit Branch</h2>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{editing.branch_name}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-rose-500 transition"><Icons.Close /></button>
             </div>
 
             <div className="p-8 overflow-y-auto space-y-8">
-               {/* 1. Identity */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormGroup label="Branch Name" required>
-                    <InputBox value={editing.branch_name} onChange={e => setEditing({...editing, branch_name: e.target.value})} icon={<Icons.Building />} />
-                  </FormGroup>
-                  <FormGroup label="Business Name" required>
-                    <SelectBox options={businessOptions} value={editing.business_name} onChange={e => setEditing({...editing, business_name: e.target.value})} icon={<Icons.Building />} />
-                  </FormGroup>
-                  <FormGroup label="Allowed Products">
-                    <MultiSelectDropdown options={productOptions} selected={editing.loan_product || []} onChange={val => setEditing({...editing, loan_product: val})} placeholder="Select Products" />
-                  </FormGroup>
-                  <FormGroup label="GSTIN">
-                    <InputBox value={editing.gst_in} onChange={e => setEditing({...editing, gst_in: e.target.value})} icon={<Icons.Receipt />} />
-                  </FormGroup>
-               </div>
+              {/* 1. Identity */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup label="Branch Name" required>
+                  <InputBox value={editing.branch_name} onChange={e => setEditing({ ...editing, branch_name: e.target.value })} icon={<Icons.Building />} />
+                </FormGroup>
+                <FormGroup label="Business Name" required>
+                  <SelectBox options={businessOptions} value={editing.business_name} onChange={e => setEditing({ ...editing, business_name: e.target.value })} icon={<Icons.Building />} />
+                </FormGroup>
+                <FormGroup label="Allowed Products">
+                  <MultiSelectDropdown options={productOptions} selected={editing.loan_product || []} onChange={val => setEditing({ ...editing, loan_product: val })} placeholder="Select Products" />
+                </FormGroup>
+                <FormGroup label="GSTIN">
+                  <InputBox value={editing.gst_in} onChange={e => setEditing({ ...editing, gst_in: e.target.value })} icon={<Icons.Receipt />} />
+                </FormGroup>
+              </div>
 
-               {/* 2. Contact */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormGroup label="Contact Person"><InputBox value={editing.contact_person} onChange={e => setEditing({...editing, contact_person: e.target.value})} icon={<Icons.User />} /></FormGroup>
-                  <FormGroup label="Mobile No"><InputBox value={editing.mobile_no} onChange={e => setEditing({...editing, mobile_no: e.target.value})} icon={<Icons.Phone />} /></FormGroup>
-                  <FormGroup label="Email"><InputBox type="email" value={editing.email} onChange={e => setEditing({...editing, email: e.target.value})} icon={<Icons.Mail />} /></FormGroup>
-                  <FormGroup label="Address" className="col-span-2"><TextareaBox value={editing.address} onChange={e => setEditing({...editing, address: e.target.value})} icon={<Icons.MapPin />} /></FormGroup>
-               </div>
+              {/* 2. Contact */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup label="Contact Person"><InputBox value={editing.contact_person} onChange={e => setEditing({ ...editing, contact_person: e.target.value })} icon={<Icons.User />} /></FormGroup>
+                <FormGroup label="Mobile No"><InputBox value={editing.mobile_no} onChange={e => setEditing({ ...editing, mobile_no: e.target.value })} icon={<Icons.Phone />} /></FormGroup>
+                <FormGroup label="Email"><InputBox type="email" value={editing.email} onChange={e => setEditing({ ...editing, email: e.target.value })} icon={<Icons.Mail />} /></FormGroup>
+                <FormGroup label="Address" className="col-span-2"><TextareaBox value={editing.address} onChange={e => setEditing({ ...editing, address: e.target.value })} icon={<Icons.MapPin />} /></FormGroup>
+              </div>
 
-               {/* 3. Status */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormGroup label="Current Status">
-                    <SelectBox options={[{value: 'Active', label: 'Active'}, {value: 'Inactive', label: 'Inactive'}]} value={editing.status} onChange={e => setEditing({...editing, status: e.target.value})} />
-                  </FormGroup>
-                  <div className="col-span-2">
-                    <ToggleSwitch label="Branch Verification Status" checked={editing.isVerified} onChange={() => setEditing({...editing, isVerified: !editing.isVerified})} />
-                  </div>
-               </div>
+              {/* 3. Status */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormGroup label="Current Status">
+                  <SelectBox options={[{ value: 'Active', label: 'Active' }, { value: 'Inactive', label: 'Inactive' }]} value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value })} />
+                </FormGroup>
+                <div className="col-span-2">
+                  <ToggleSwitch label="Branch Verification Status" checked={editing.isVerified} onChange={() => setEditing({ ...editing, isVerified: !editing.isVerified })} />
+                </div>
+              </div>
             </div>
 
             <div className="p-6 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
-               <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-               <Button variant="primary" onClick={handleUpdate}>Save Changes</Button>
+              <Button variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+              <Button variant="primary" onClick={handleUpdate}>Save Changes</Button>
             </div>
             {validationError && <div className="absolute bottom-20 right-8 bg-rose-50 text-rose-600 px-4 py-2 rounded-lg text-xs font-bold border border-rose-200 shadow-lg">{validationError}</div>}
           </div>

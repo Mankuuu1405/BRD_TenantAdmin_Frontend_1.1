@@ -10,23 +10,27 @@ export default function EscalationRules() {
   const [loading, setLoading] = useState(true);
 
   const addRule = async () => {
-    if (!newRule.hours) return;
-    
-    // Prepare the payload for the backend
-    const payload = {
-      stage: newRule.stage,
-      condition: `Delay > ${newRule.hours} Hours`,
-      action: newRule.action,
-      priority: newRule.priority
-    };
+    if (!newRule.hours || newRule.hours <= 0) {
+      alert("Please enter a valid number of hours");
+      return;
+    }
 
+    setLoading(true); // Show user something is happening
     try {
+      const payload = {
+        stage: newRule.stage,
+        delay_hours: parseInt(newRule.hours), // Send as number
+        action: newRule.action,
+        priority: newRule.priority
+      };
       const createdRule = await escalationAPI.create(payload);
-      setRules([...rules, createdRule]); // Add the real record from server
+      setRules(prev => [...prev, createdRule]);
       setIsModalOpen(false);
-      setNewRule({ stage: "Underwriting", hours: "", action: "Notify Supervisor", priority: "Medium" }); // Reset
+      setNewRule({ stage: "Underwriting", hours: "", action: "Notify Supervisor", priority: "Medium" });
     } catch (err) {
-      alert("Failed to save rule. Please try again.");
+      alert("Server error: Could not save rule.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -55,7 +59,7 @@ export default function EscalationRules() {
 
   return (
     <div className="p-8 max-w-6xl mx-auto min-h-screen bg-slate-50">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center mb-10">
         <div className="flex items-center gap-4">
@@ -66,44 +70,51 @@ export default function EscalationRules() {
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Escalation Master</h1>
             <p className="text-slate-500 font-medium">Define auto-triggers for delayed applications.</p>
           </div>
+        </div>
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition"
+        >
+          <PlusIcon className="w-5 h-5" /> Add Rule
+        </button>
       </div>
-      <button 
-        onClick={() => setIsModalOpen(true)}
-        className="flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold uppercase tracking-widest hover:bg-primary-700 shadow-lg shadow-primary-200 transition"
-      >
-        <PlusIcon className="w-5 h-5" /> Add Rule
-      </button>
-    </div>
 
       {/* Rules Grid */}
       <div className="grid grid-cols-1 gap-4">
-        {rules.map((rule) => (
-          <div key={rule.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-rose-200 transition-all">
-            <div className="flex items-center gap-6">
-              <div className="flex flex-col items-center justify-center w-16 h-16 bg-slate-50 rounded-xl border border-slate-100">
-                <ClockIcon className="h-6 w-6 text-slate-400" />
-              </div>
-              <div>
-                <h4 className="text-lg font-bold text-slate-800">{rule.stage} Stage</h4>
-                <div className="flex gap-3 mt-1 text-sm font-medium text-slate-500">
-                  <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">{rule.condition}</span>
-                  <span>→</span>
-                  <span className="text-slate-700">{rule.action}</span>
+        {loading ? (
+          <p className="text-center p-10 text-slate-400 font-bold uppercase tracking-widest">Loading rules...</p>
+        ) : rules.length > 0 ? (
+          rules.map((rule) => (
+            <div key={rule.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-rose-200 transition-all">
+              <div className="flex items-center gap-6">
+                <div className="flex flex-col items-center justify-center w-16 h-16 bg-slate-50 rounded-xl border border-slate-100">
+                  <ClockIcon className="h-6 w-6 text-slate-400" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-slate-800">{rule.stage} Stage</h4>
+                  <div className="flex gap-3 mt-1 text-sm font-medium text-slate-500">
+                    <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded border border-rose-100">{rule.condition}</span>
+                    <span>→</span>
+                    <span className="text-slate-700">{rule.action}</span>
+                  </div>
                 </div>
               </div>
+              <div className="flex items-center gap-6">
+                <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full ${rule.priority === 'Critical' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                  {rule.priority} Priority
+                </span>
+                <button onClick={() => handleDelete(rule.id)} className="p-2 text-slate-300 hover:text-rose-500 transition">
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-6">
-              <span className={`text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full ${
-                rule.priority === 'Critical' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-              }`}>
-                {rule.priority} Priority
-              </span>
-              <button onClick={() => handleDelete(rule.id)} className="p-2 text-slate-300 hover:text-rose-500 transition">
-                <TrashIcon className="h-5 w-5" />
-              </button>
-            </div>
+          ))
+        ) : (
+          <div className="text-center p-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+            <p className="text-slate-400 font-medium">No escalation rules defined yet.</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Modal */}
@@ -114,7 +125,7 @@ export default function EscalationRules() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Process Stage</label>
-                <select className="w-full p-3 border rounded-xl font-bold text-slate-700" onChange={e => setNewRule({...newRule, stage: e.target.value})}>
+                <select value={newRule.stage} className="w-full p-3 border rounded-xl font-bold text-slate-700" onChange={e => setNewRule({ ...newRule, stage: e.target.value })}>
                   <option>Underwriting</option>
                   <option>Document Verification</option>
                   <option>Disbursement</option>
@@ -122,11 +133,11 @@ export default function EscalationRules() {
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Trigger Delay (Hours)</label>
-                <input type="number" className="w-full p-3 border rounded-xl font-bold text-slate-700" placeholder="e.g. 24" onChange={e => setNewRule({...newRule, hours: e.target.value})} />
+                <input value={newRule.hours} type="number" className="w-full p-3 border rounded-xl font-bold text-slate-700" placeholder="e.g. 24" onChange={e => setNewRule({ ...newRule, hours: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Action</label>
-                <select className="w-full p-3 border rounded-xl font-bold text-slate-700" onChange={e => setNewRule({...newRule, action: e.target.value})}>
+                <select value={newRule.action} className="w-full p-3 border rounded-xl font-bold text-slate-700" onChange={e => setNewRule({ ...newRule, action: e.target.value })}>
                   <option>Notify Supervisor</option>
                   <option>Notify Admin</option>
                   <option>Auto-Reassign</option>
