@@ -394,7 +394,7 @@ export default function PersonalLoanApplicationWizard() {
         
         {/* HEADER */}
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Apply for Personal Loan</h1>
+          <h1 className="text-3xl font-extrabold text-gray-900 mb-2">APPLY FOR LOAN</h1>
           <p className="text-gray-500">Complete the 5 steps below to get sanctioned in minutes.</p>
         </div>
 
