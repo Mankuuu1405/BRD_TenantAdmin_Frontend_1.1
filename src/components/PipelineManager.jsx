@@ -5,6 +5,7 @@ import LeadKanban from "./LeadKanban";
 import LeadListView from "./LeadListView";
 import LeadProfileDrawer from "./LeadProfileDrawer";
 import BulkUploadModal from "./BulkUploadModal";
+import AddLeadModal from "./AddLeadModal";
 import { 
   MagnifyingGlassIcon, ChartBarIcon, TableCellsIcon, 
   UserPlusIcon, CloudArrowUpIcon 
@@ -15,6 +16,7 @@ export default function PipelineManager() {
   const [viewMode, setViewMode] = useState("KANBAN");
   const [selectedLead, setSelectedLead] = useState(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isAddLeadOpen, setIsAddLeadOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const handleConvertLead = (lead) => {
@@ -57,8 +59,8 @@ export default function PipelineManager() {
             <button onClick={() => setIsUploadOpen(true)} className="flex items-center gap-2 text-xs font-bold uppercase text-slate-600 hover:text-slate-900">
                <CloudArrowUpIcon className="h-5 w-5" /> Import
             </button>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700">
-               <UserPlusIcon className="h-4 w-4 inline mr-2" /> Add Lead
+            <button onClick={() => setIsAddLeadOpen(true)} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700">
+               + Add Lead
             </button>
          </div>
       </div>
@@ -80,6 +82,7 @@ export default function PipelineManager() {
         onConvert={handleConvertLead}
       />
       <BulkUploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+      <AddLeadModal isOpen={isAddLeadOpen} onClose={() => setIsAddLeadOpen(false)} />
     </div>
   );
 }

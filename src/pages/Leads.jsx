@@ -56,14 +56,8 @@ export default function Leads() {
             </div>
           </div>
 
-          {/* CONTEXTUAL INFO & ADD LEAD BUTTON */}
+          {/* CONTEXTUAL INFO */}
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate("/leads/new")}
-              className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition"
-            >
-              + Add Lead
-            </button>
             <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
               {activeModule === "CAMPAIGNS" ? (
                 <>
